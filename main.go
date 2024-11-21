@@ -11,17 +11,30 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "oracle"}
+	walletService := &services.WalletService{
+		PasswordManager: &services.PasswordManager{},
+	}
+	rpcService := &services.RpcService{}
 	addWalletcommand := commands.AddWalletCommand{
-		WalletService: &services.WalletService{
-			PasswordManager: &services.PasswordManager{},
-		},
+		WalletService: walletService,
 	}
 	rpcCommand := commands.SetRpcCommand{
-		RpcService: &services.RpcService{},
+		RpcService: rpcService,
+	}
+	registerCommand := commands.RegisterCommand{
+		WalletService: walletService,
+		RegisterService: &services.RegisterService{
+			WalletService: walletService,
+			RpcService:    rpcService,
+			VerificationService: &services.IdentityService{
+				WalletService: walletService,
+			},
+		},
 	}
 	syncCommand := commands.SyncCommand{}
 	rootCmd.AddCommand(addWalletcommand.Executable())
 	rootCmd.AddCommand(rpcCommand.Executable())
+	rootCmd.AddCommand(registerCommand.Executable())
 	rootCmd.AddCommand(syncCommand.Executable())
 
 	if err := rootCmd.Execute(); err != nil {
