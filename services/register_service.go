@@ -15,9 +15,10 @@ import (
 )
 
 type RegisterService struct {
-	WalletService interfaces.WalletService
-	RpcService    interfaces.RpcService
-	ContractAddr  string
+	WalletService       interfaces.WalletService
+	RpcService          interfaces.RpcService
+	ContractAddr        string
+	VerificationService interfaces.IdentityVerificationService
 }
 
 func (r *RegisterService) Register(ip string) error {
@@ -50,7 +51,7 @@ func (r *RegisterService) Register(ip string) error {
 }
 
 func (r *RegisterService) Oracles() ([]models.Oracle, error) {
-	contractAddress := common.HexToAddress("0xYourContractAddress")
+	contractAddress := common.HexToAddress(r.ContractAddr)
 	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
 	if err != nil {
 		fmt.Println("Failed to load contract:", err)
@@ -64,6 +65,12 @@ func (r *RegisterService) Oracles() ([]models.Oracle, error) {
 
 	var oracles []models.Oracle
 	for _, o := range oracleResult {
+		//Verify that the node is running with the expected public address
+		verified := r.VerificationService.Verify(o.Ip, o.Name.Hex())
+		if !verified {
+			continue
+		}
+
 		oracles = append(oracles, models.Oracle{
 			Name:       o.Name.Hex(),
 			Ip:         o.Ip,
