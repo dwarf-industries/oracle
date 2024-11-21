@@ -16,7 +16,7 @@ func (aw *AddWalletCommand) Executable() *cobra.Command {
 	return &cobra.Command{
 		Use:   "setup [private key] [password]",
 		Short: "configure your oracle account",
-		Args:  cobra.MaximumNArgs(3),
+		Args:  cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) < 2 {
 				log.Fatalf("Parameters are required, expected 3 got %v", len(args))
