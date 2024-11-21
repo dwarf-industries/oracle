@@ -19,9 +19,10 @@ func main() {
 	rpcCommand := commands.SetRpcCommand{
 		RpcService: &services.RpcService{},
 	}
-
+	syncCommand := commands.SyncCommand{}
 	rootCmd.AddCommand(addWalletcommand.Executable())
 	rootCmd.AddCommand(rpcCommand.Executable())
+	rootCmd.AddCommand(syncCommand.Executable())
 
 	if err := rootCmd.Execute(); err != nil {
 		// fmt.Println(err)
