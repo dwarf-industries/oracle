@@ -28,7 +28,7 @@ func (w *WalletService) SetWallet(wallet *string, password *string) bool {
 }
 
 func (w *WalletService) GetWallet(password *string) (*ecdsa.PrivateKey, error) {
-	wallet, err := w.PasswordManager.LoadFromFile("password", []byte(*password))
+	wallet, err := w.PasswordManager.LoadFromFile("oracle", []byte(*password))
 	if err != nil {
 		return nil, err
 	}
@@ -49,4 +49,45 @@ func (w *WalletService) ActiveWallet() (*ecdsa.PrivateKey, error) {
 	}
 
 	return w.activeWallet, nil
+}
+
+func (w *WalletService) SignMessage(message []byte) ([]byte, error) {
+	privateKey, err := w.ActiveWallet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to access active wallet: %v", err)
+	}
+
+	hash := crypto.Keccak256Hash([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
+	signature, err := crypto.Sign(hash.Bytes(), privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign message: %v", err)
+	}
+
+	return signature, nil
+}
+
+func (w *WalletService) VerifySignature(message []byte, signature []byte, expectedAddress string) (bool, error) {
+	if len(signature) != 65 {
+		return false, fmt.Errorf("invalid signature length: expected 65 bytes, got %d", len(signature))
+	}
+
+	_, _, v := signature[:32], signature[32:64], signature[64]
+	if v < 27 {
+		v += 27
+	}
+
+	if v != 27 && v != 28 {
+		return false, fmt.Errorf("invalid recovery ID: %d", v)
+	}
+
+	hash := crypto.Keccak256Hash([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
+
+	publicKey, err := crypto.SigToPub(hash.Bytes(), append(signature[:64], v-27))
+	if err != nil {
+		return false, fmt.Errorf("failed to recover public key: %v", err)
+	}
+
+	recoveredAddress := crypto.PubkeyToAddress(*publicKey).Hex()
+
+	return recoveredAddress == expectedAddress, nil
 }
