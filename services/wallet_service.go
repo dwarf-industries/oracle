@@ -2,9 +2,11 @@ package services
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/sha3"
 
 	"oracle/interfaces"
 )
@@ -12,6 +14,10 @@ import (
 type WalletService struct {
 	PasswordManager interfaces.PasswordManager
 	activeWallet    *ecdsa.PrivateKey
+}
+
+func (w *WalletService) NewWallet() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(crypto.S256(), crypto.NewKeccakState())
 }
 
 func (w *WalletService) SetWallet(wallet *string, password *string) bool {
@@ -64,6 +70,31 @@ func (w *WalletService) SignMessage(message []byte) ([]byte, error) {
 	}
 
 	return signature, nil
+}
+
+func (w *WalletService) GetAddressForPrivateKey(key *ecdsa.PrivateKey) string {
+	publicKey := key.PublicKey
+
+	xBytes := publicKey.X.Bytes()
+	yBytes := publicKey.Y.Bytes()
+
+	xPadded := make([]byte, 32-len(xBytes))
+	yPadded := make([]byte, 32-len(yBytes))
+	xPadded = append(xPadded, xBytes...)
+	yPadded = append(yPadded, yBytes...)
+
+	publicKeyBytes := append(xPadded, yPadded...)
+	publicKeyHex := hex.EncodeToString(publicKeyBytes)
+
+	fmt.Println("Public Key (Uncompressed):", publicKeyHex)
+
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(publicKeyBytes)
+	publicKeyHash := hasher.Sum(nil)
+
+	address := publicKeyHash[len(publicKeyHash)-20:]
+	addressHex := hex.EncodeToString(address)
+	return addressHex
 }
 
 func (w *WalletService) VerifySignature(message []byte, signature []byte, expectedAddress string) (bool, error) {
