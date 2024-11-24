@@ -81,6 +81,22 @@ func (r *RegisterService) Oracles() ([]models.Oracle, error) {
 	return oracles, nil
 }
 
+func (r *RegisterService) Registered() bool {
+	contractAddress := common.HexToAddress(r.ContractAddr)
+	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
+	if err != nil {
+		fmt.Println("Failed to load contract:", err)
+		return false
+	}
+
+	registered, err := contract.IsOracleRegistered(&bind.CallOpts{})
+	if err != nil {
+		fmt.Println("Smart contract check reverted, contract an administrator.:", err)
+		return false
+	}
+	return registered
+}
+
 func (r *RegisterService) newTransactor(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	chainID, err := r.RpcService.GetClient().NetworkID(context.Background())
 	if err != nil {
