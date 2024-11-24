@@ -14,10 +14,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"oracle/controllers"
+	"oracle/interfaces"
 	"oracle/middlewhere"
 )
 
 type SyncCommand struct {
+	RegisterService interfaces.RegisterService
 }
 
 func (s *SyncCommand) Executable() *cobra.Command {
@@ -37,8 +39,22 @@ func (s *SyncCommand) Execute(port *string) {
 	router.Use(middlewhere.Cors())
 	v1 := router.Group("/v1")
 
+	authorized := s.RegisterService.Registered()
+	if !authorized {
+		fmt.Println("Your wallet doesn't appear to be licensed to run a node, please take a look at the requirments for becoming a node operator.")
+		return
+	}
+
+	_, err := s.RegisterService.Oracles()
+	if err != nil {
+		fmt.Println("Failed to get oracles")
+		return
+	}
+
 	nodesController := controllers.NodesController{}
+	identityController := controllers.IdentityController{}
 	nodesController.Init(v1)
+	identityController.Init(v1)
 
 	srv := &http.Server{
 		Addr:    *port,
