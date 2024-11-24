@@ -17,12 +17,27 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	rpc := getRpc()
+
 	var rootCmd = &cobra.Command{Use: "oracle"}
 	walletService := &services.WalletService{
 		PasswordManager: &services.PasswordManager{},
 	}
 	rpcService := &services.RpcService{}
+	rpcService.SetClient(rpc)
+
+	registerService := &services.RegisterService{
+		ContractAddr:  os.Getenv("CONTRACT_ADDRESS"),
+		WalletService: walletService,
+		RpcService:    rpcService,
+		VerificationService: &services.IdentityService{
+			WalletService: walletService,
+		},
+	}
 	addWalletcommand := commands.AddWalletCommand{
+		WalletService: walletService,
+	}
+	generateWalletCommand := commands.GenerateWalletCommand{
 		WalletService: walletService,
 	}
 	rpcCommand := commands.SetRpcCommand{
@@ -31,23 +46,19 @@ func main() {
 	registerCommand := commands.RegisterCommand{
 		WalletService: walletService,
 
-		RegisterService: &services.RegisterService{
-			ContractAddr:  os.Getenv("CONTRACT_ADDRESS"),
-			WalletService: walletService,
-			RpcService:    rpcService,
-			VerificationService: &services.IdentityService{
-				WalletService: walletService,
-			},
-		},
+		RegisterService: registerService,
 	}
-	syncCommand := commands.SyncCommand{}
+	syncCommand := commands.SyncCommand{
+		RegisterService: registerService,
+	}
+
+	generateWalletCommand.Execute()
+
 	rootCmd.AddCommand(addWalletcommand.Executable())
 	rootCmd.AddCommand(rpcCommand.Executable())
 	rootCmd.AddCommand(registerCommand.Executable())
 	rootCmd.AddCommand(syncCommand.Executable())
-
-	rpc := getRpc()
-	rpcService.SetClient(rpc)
+	rootCmd.AddCommand(generateWalletCommand.Executable())
 
 	if err := rootCmd.Execute(); err != nil {
 		// fmt.Println(err)
