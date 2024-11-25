@@ -33,15 +33,25 @@ func (r *RegisterService) Register(ip string) error {
 		return fmt.Errorf("failed to load contract: %v", err)
 	}
 
+	registerFee, err := r.GetRegistrationFee()
+	if err != nil {
+		return fmt.Errorf("failed to get registration fee: %v", err)
+	}
+
 	auth, err := r.newTransactor(wallet)
 	if err != nil {
 		return fmt.Errorf("failed to create transactor: %v", err)
 	}
 
-	auth.Value = big.NewInt(1000000000000000)
-
+	auth.Value = registerFee
+	fmt.Println("Value:", auth.Value)
+	balance := r.WalletService.GetBalance(&auth.From)
+	fmt.Println(balance)
+	fmt.Println(balance.Cmp(registerFee))
 	tx, err := contract.Register(auth, ip, "0")
 	if err != nil {
+		fmt.Println(auth.From.String())
+
 		return fmt.Errorf("failed to execute register function: %v", err)
 	}
 
@@ -118,9 +128,8 @@ func (r *RegisterService) GetReportFee() (*big.Int, error) {
 
 	return contract.GetReportFee(&bind.CallOpts{})
 }
-
 func (r *RegisterService) newTransactor(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
-	chainID, err := r.RpcService.GetClient().NetworkID(context.Background())
+	chainID, err := r.RpcService.GetClient().ChainID(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get network ID: %v", err)
 	}
@@ -131,10 +140,28 @@ func (r *RegisterService) newTransactor(privateKey *ecdsa.PrivateKey) (*bind.Tra
 	}
 
 	auth.GasLimit = uint64(300000)
+
 	auth.GasPrice, err = r.RpcService.GetClient().SuggestGasPrice(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("failed to suggest gas price: %v", err)
+		auth.GasPrice = big.NewInt(20000000000)
+		fmt.Println("Warning: Failed to suggest gas price, using fallback value")
 	}
+
+	block, err := r.RpcService.GetClient().BlockNumber(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrive current block: %v", err)
+	}
+	nonce, err := r.RpcService.GetClient().NonceAt(context.Background(), auth.From, big.NewInt(int64(block)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nonce: %v", err)
+	}
+	auth.Nonce = big.NewInt(int64(nonce))
+	fmt.Println("Transaction details:")
+	fmt.Println("ChainID:", chainID)
+	fmt.Println("GasLimit:", auth.GasLimit)
+	fmt.Println("GasPrice:", auth.GasPrice)
+	fmt.Println("Nonce:", auth.Nonce)
+	fmt.Println("Block:", block)
 
 	return auth, nil
 }

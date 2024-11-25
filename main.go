@@ -32,7 +32,6 @@ func main() {
 	syncCommand := commands.SyncCommand{
 		RegisterService: registerService,
 	}
-
 	rootCmd.AddCommand(addWalletcommand.Executable())
 	rootCmd.AddCommand(rpcCommand.Executable())
 	rootCmd.AddCommand(registerCommand.Executable())

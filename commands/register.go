@@ -45,6 +45,7 @@ func (r *RegisterCommand) Execute(domain *string) {
 
 	err = r.RegisterService.Register(*domain)
 	if err != nil {
+		fmt.Println(err)
 		fmt.Println("Failed to register oracle")
 		return
 	}
