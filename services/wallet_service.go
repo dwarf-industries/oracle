@@ -31,14 +31,17 @@ func (w *WalletService) SetWallet(wallet *string, password *string) (ecdsa.Priva
 		return ecdsa.PrivateKey{}, err
 	}
 
-	keyBytes := crypto.FromECDSA(privateKey)
-	w.PasswordManager.Encrypt(keyBytes, []byte(*password))
+	byteSlice := []byte(*wallet)
+	saved, err := w.PasswordManager.Encrypt(byteSlice, []byte(*password))
+	if !saved || err != nil {
+		return ecdsa.PrivateKey{}, err
+	}
 
 	return *privateKey, nil
 }
 
 func (w *WalletService) GetWallet(password *string) (*ecdsa.PrivateKey, error) {
-	wallet, err := w.PasswordManager.LoadFromFile("oracle", []byte(*password))
+	wallet, err := w.PasswordManager.LoadFromFile("oracle_data", []byte(*password))
 	if err != nil {
 		return nil, err
 	}

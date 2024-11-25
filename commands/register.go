@@ -32,7 +32,7 @@ func (r *RegisterCommand) Execute(domain *string) {
 
 	_, err := r.WalletService.GetWallet(&password)
 	if err != nil {
-		fmt.Println("Failed to unlock wallet, either wrong password or not set.")
+		fmt.Println("Failed to unlock wallet, either wrong password or not set.", err)
 		return
 	}
 
