@@ -22,12 +22,13 @@ func setupServices() {
 
 	rpc := getRpc()
 
-	walletService = &services.WalletService{
-		PasswordManager: &services.PasswordManager{},
-	}
 	rpcService = &services.RpcService{}
 	rpcService.SetClient(rpc)
 
+	walletService = &services.WalletService{
+		PasswordManager: &services.PasswordManager{},
+		RpcService:      rpcService,
+	}
 	registerService = &services.RegisterService{
 		ContractAddr:  os.Getenv("CONTRACT_ADDRESS"),
 		WalletService: walletService,
