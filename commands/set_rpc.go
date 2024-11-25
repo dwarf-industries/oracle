@@ -2,7 +2,10 @@ package commands
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/fatih/color"
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/spf13/cobra"
 
 	"oracle/interfaces"
@@ -28,5 +31,15 @@ func (s *SetRpcCommand) Execute(rpc *string) {
 	err := s.RpcService.OverrideClient(rpc)
 	if err != nil {
 		fmt.Printf("Failed to override existing client, error: %v", err)
+		return
 	}
+	header := color.New(color.FgCyan, color.Bold).SprintFunc()
+	fmt.Println(header("🚀 Rpc Updated!"))
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Key Value"})
+	t.AppendRow(table.Row{rpc})
+	t.Render()
+
+	os.Exit(0)
 }
