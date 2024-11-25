@@ -14,7 +14,8 @@ import (
 )
 
 type AddWalletCommand struct {
-	WalletService interfaces.WalletService
+	WalletService   interfaces.WalletService
+	RegisterService interfaces.RegisterService
 }
 
 func (aw *AddWalletCommand) Executable() *cobra.Command {
@@ -63,6 +64,25 @@ func (aw *AddWalletCommand) Execute(wallet *string, password *string) {
 
 	if walletBalance.Int64() == 0 {
 		fmt.Println("\n⚠️  ATTENTION: it appears that you wallet balance is empty, you will need to fund it in order to use it as operations wallet!")
+	}
+
+	registerFee, err := aw.RegisterService.GetRegistrationFee()
+
+	if err != nil {
+		fmt.Println("Failed to get registration fee, can't estimate if balance is less then the requirment, interactions will likely fail!")
+		fmt.Println("This error has nothing to do with your wallet, it's either caused by an issue with the RPC client or the blockchain smart contract")
+		return
+	}
+
+	if walletBalance.Cmp(registerFee) <= 0 {
+		fmt.Println("It appears that your balance is less then the required register fee, if you attempt to register your wallet you will likely have to add more funds.")
+
+		b := table.NewWriter()
+		b.SetOutputMirror(os.Stdout)
+		b.AppendHeader(table.Row{"Type", "Amount"})
+		b.AppendRow(table.Row{"Wallet balance", walletBalance.String()})
+		b.AppendRow(table.Row{"Registration Fee", registerFee.String()})
+		b.Render()
 	}
 
 	fmt.Println("you can learn more about funding and why it's required under 'oracle network-operation-info'")
