@@ -12,8 +12,7 @@ import (
 func main() {
 	setupServices()
 	var rootCmd = &cobra.Command{
-		Use:          "oracle",
-		SilenceUsage: true,
+		Use: "oracle",
 	}
 	addWalletcommand := commands.AddWalletCommand{
 		WalletService: walletService,
@@ -32,9 +31,6 @@ func main() {
 	syncCommand := commands.SyncCommand{
 		RegisterService: registerService,
 	}
-
-	password := "123"
-	generateWalletCommand.Execute(&password)
 
 	rootCmd.AddCommand(addWalletcommand.Executable())
 	rootCmd.AddCommand(rpcCommand.Executable())
