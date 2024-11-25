@@ -37,6 +37,8 @@ func (s *SyncCommand) Executable() *cobra.Command {
 func (s *SyncCommand) Execute(port *string) {
 	router := gin.New()
 	router.Use(middlewhere.Cors())
+	router.Use(middlewhere.RateLimiterMiddleware())
+
 	v1 := router.Group("/v1")
 
 	authorized := s.RegisterService.Registered()
