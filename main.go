@@ -15,7 +15,8 @@ func main() {
 		Use: "oracle",
 	}
 	addWalletcommand := commands.AddWalletCommand{
-		WalletService: walletService,
+		WalletService:   walletService,
+		RegisterService: registerService,
 	}
 	generateWalletCommand := commands.GenerateWalletCommand{
 		WalletService: walletService,
