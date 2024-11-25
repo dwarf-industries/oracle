@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -10,7 +11,10 @@ import (
 
 func main() {
 	setupServices()
-	var rootCmd = &cobra.Command{Use: "oracle"}
+	var rootCmd = &cobra.Command{
+		Use:          "oracle",
+		SilenceUsage: true,
+	}
 	addWalletcommand := commands.AddWalletCommand{
 		WalletService: walletService,
 	}
@@ -39,7 +43,7 @@ func main() {
 	rootCmd.AddCommand(generateWalletCommand.Executable())
 
 	if err := rootCmd.Execute(); err != nil {
-		// fmt.Println(err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }

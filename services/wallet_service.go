@@ -84,9 +84,6 @@ func (w *WalletService) GetAddressForPrivateKey(key *ecdsa.PrivateKey) string {
 	yPadded = append(yPadded, yBytes...)
 
 	publicKeyBytes := append(xPadded, yPadded...)
-	publicKeyHex := hex.EncodeToString(publicKeyBytes)
-
-	fmt.Println("Public Key (Uncompressed):", publicKeyHex)
 
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(publicKeyBytes)
