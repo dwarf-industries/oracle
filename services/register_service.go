@@ -97,6 +97,28 @@ func (r *RegisterService) Registered() bool {
 	return registered
 }
 
+func (r *RegisterService) GetRegistrationFee() (*big.Int, error) {
+	contractAddress := common.HexToAddress(r.ContractAddr)
+	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
+	if err != nil {
+		fmt.Println("Failed to load contract:", err)
+		return nil, err
+	}
+
+	return contract.GetRegistrationFee(&bind.CallOpts{})
+}
+
+func (r *RegisterService) GetReportFee() (*big.Int, error) {
+	contractAddress := common.HexToAddress(r.ContractAddr)
+	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
+	if err != nil {
+		fmt.Println("Failed to load contract:", err)
+		return nil, err
+	}
+
+	return contract.GetReportFee(&bind.CallOpts{})
+}
+
 func (r *RegisterService) newTransactor(privateKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
 	chainID, err := r.RpcService.GetClient().NetworkID(context.Background())
 	if err != nil {
