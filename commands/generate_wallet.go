@@ -38,9 +38,6 @@ func (g *GenerateWalletCommand) Execute(password *string) {
 	privateKeyHex := wallet.D.Text(16)
 
 	fmt.Println("Private key (raw hex):", privateKeyHex)
-
-	fmt.Println("Please enter a password to protect the wallet for future use")
-
 	created := g.WalletService.SetWallet(&privateKeyHex, password)
 
 	if !created {
