@@ -14,15 +14,17 @@ type GenerateWalletCommand struct {
 
 func (g *GenerateWalletCommand) Executable() *cobra.Command {
 	return &cobra.Command{
-		Use:   "new-wallet",
+		Use:   "new-wallet [password]",
 		Short: "Generates a new empty wallet",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-
+			password := args[0]
+			g.Execute(&password)
 		},
 	}
 }
 
-func (g *GenerateWalletCommand) Execute() {
+func (g *GenerateWalletCommand) Execute(password *string) {
 	wallet, err := g.WalletService.NewWallet()
 	if err != nil {
 		fmt.Println("Failed to create new wallet, please submit an issue or try again!")
@@ -38,8 +40,10 @@ func (g *GenerateWalletCommand) Execute() {
 	fmt.Println("Private key (raw hex):", privateKeyHex)
 
 	fmt.Println("Please enter a password to protect the wallet for future use")
-	var password string
-	fmt.Scanln(&password)
-	g.WalletService.SetWallet(&privateKeyHex, &password)
 
+	created := g.WalletService.SetWallet(&privateKeyHex, password)
+
+	if !created {
+		fmt.Println("Failed to save wallet!")
+	}
 }
