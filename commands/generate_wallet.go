@@ -39,10 +39,13 @@ func (g *GenerateWalletCommand) Execute(password *string) {
 
 	privateKeyHex := wallet.D.Text(16)
 
-	created := g.WalletService.SetWallet(&privateKeyHex, password)
+	_, err = g.WalletService.SetWallet(&privateKeyHex, password)
 
-	if !created {
-		fmt.Println("Failed to save wallet!")
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Failed to create new wallet.")
+		os.Exit(1)
+		return
 	}
 
 	header := color.New(color.FgCyan, color.Bold).SprintFunc()
