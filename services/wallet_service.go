@@ -1,10 +1,13 @@
 package services
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 
@@ -13,6 +16,7 @@ import (
 
 type WalletService struct {
 	PasswordManager interfaces.PasswordManager
+	RpcService      interfaces.RpcService
 	activeWallet    *ecdsa.PrivateKey
 }
 
@@ -20,17 +24,17 @@ func (w *WalletService) NewWallet() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(crypto.S256(), crypto.NewKeccakState())
 }
 
-func (w *WalletService) SetWallet(wallet *string, password *string) bool {
+func (w *WalletService) SetWallet(wallet *string, password *string) (ecdsa.PrivateKey, error) {
 	privateKey, err := crypto.HexToECDSA(*wallet)
 	if err != nil {
-		fmt.Println(err)
-		return false
+
+		return ecdsa.PrivateKey{}, err
 	}
 
 	keyBytes := crypto.FromECDSA(privateKey)
 	w.PasswordManager.Encrypt(keyBytes, []byte(*password))
 
-	return true
+	return *privateKey, nil
 }
 
 func (w *WalletService) GetWallet(password *string) (*ecdsa.PrivateKey, error) {
@@ -118,4 +122,22 @@ func (w *WalletService) VerifySignature(message []byte, signature []byte, expect
 	recoveredAddress := crypto.PubkeyToAddress(*publicKey).Hex()
 
 	return recoveredAddress == expectedAddress, nil
+}
+
+func (w *WalletService) GetBalance(wallet *common.Address) big.Int {
+	client := w.RpcService.GetClient()
+
+	latestBlock, err := client.BlockNumber(context.Background())
+	if err != nil {
+		fmt.Println("Failed to get latest block, aborting!")
+		return *big.NewInt(0)
+	}
+	walletBalance, err := client.BalanceAt(context.Background(), *wallet, big.NewInt(int64(latestBlock)))
+
+	if err != nil {
+		fmt.Println("Failed to get latest block, aborting!")
+		return *big.NewInt(0)
+	}
+
+	return *walletBalance
 }
