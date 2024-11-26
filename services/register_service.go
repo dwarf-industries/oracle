@@ -73,8 +73,30 @@ func (r *RegisterService) Oracles() ([]models.Oracle, error) {
 		return []models.Oracle{}, nil
 	}
 
+	wallet, err := r.WalletService.ActiveWallet()
+	if err != nil {
+		fmt.Println("Failed to retrive credentails")
+		return []models.Oracle{}, err
+	}
+	auth, err := r.newTransactor(wallet)
+	if err != nil {
+		fmt.Println("Failed to Assign credentails")
+		return []models.Oracle{}, err
+	}
+
 	var oracles []models.Oracle
 	for _, o := range oracleResult {
+
+		if o.Name == auth.From {
+			oracles = append(oracles, models.Oracle{
+				Name:       o.Name.Hex(),
+				Ip:         o.Ip,
+				Port:       o.Port,
+				Reputation: *o.Reputation,
+			})
+			continue
+		}
+
 		//Verify that the node is running with the expected public address
 		verified := r.VerificationService.Verify(o.Ip, o.Name.Hex())
 		if !verified {
@@ -98,8 +120,20 @@ func (r *RegisterService) Registered() bool {
 		fmt.Println("Failed to load contract:", err)
 		return false
 	}
+	activeWallet, err := r.WalletService.ActiveWallet()
+	if err != nil {
+		fmt.Println("Wallet is locked or not setup")
+		return false
+	}
+	auth, err := r.newTransactor(activeWallet)
+	if err != nil {
+		fmt.Println("Failed to setup credentails")
+	}
 
-	registered, err := contract.IsOracleRegistered(&bind.CallOpts{})
+	registered, err := contract.IsOracleRegistered(&bind.CallOpts{
+		From: auth.From,
+	})
+
 	if err != nil {
 		fmt.Println("Smart contract check reverted, contract an administrator.:", err)
 		return false
