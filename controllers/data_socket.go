@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"oracle/di"
 	"oracle/interfaces"
 	"oracle/models"
 )
@@ -56,6 +57,14 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 	d.connMutex.Unlock()
 
 	conn.WriteJSON(gin.H{"State": "Authenticated"})
+
+	payment := ctx.GetHeader("pop")
+
+	allow, err := di.PaymentProcessor().VerifyPayment(payment)
+	if !allow || err != nil {
+		conn.WriteJSON(gin.H{"Error": "Rejected, can't verify payment"})
+		return
+	}
 
 	for {
 		var message map[string]interface{}
