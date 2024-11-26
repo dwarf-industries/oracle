@@ -13,6 +13,7 @@ import (
 var walletService interfaces.WalletService
 var registerService interfaces.RegisterService
 var rpcService interfaces.RpcService
+var verificationService interfaces.VerificationService
 
 func setupServices() {
 	err := godotenv.Load(".env")
@@ -37,7 +38,8 @@ func setupServices() {
 			WalletService: walletService,
 		},
 	}
-
+	verificationService = &services.VerificationService{}
+	verificationService.Init()
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
