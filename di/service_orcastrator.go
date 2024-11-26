@@ -1,4 +1,4 @@
-package main
+package di
 
 import (
 	"log"
@@ -14,8 +14,9 @@ var walletService interfaces.WalletService
 var registerService interfaces.RegisterService
 var rpcService interfaces.RpcService
 var verificationService interfaces.VerificationService
+var paymentProcessorService interfaces.PaymentProcessor
 
-func setupServices() {
+func SetupServices() {
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -40,6 +41,8 @@ func setupServices() {
 	}
 	verificationService = &services.VerificationService{}
 	verificationService.Init()
+	paymentProcessorService = &services.PaymentProcessor{}
+
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
@@ -51,4 +54,20 @@ func getRpc() *string {
 
 	converted := string(overriden)
 	return &converted
+}
+
+func WalletService() interfaces.WalletService {
+	return walletService
+}
+func RegisterService() interfaces.RegisterService {
+	return registerService
+}
+func RpcService() interfaces.RpcService {
+	return rpcService
+}
+func VerificationService() interfaces.VerificationService {
+	return verificationService
+}
+func PaymentProcessor() interfaces.PaymentProcessor {
+	return paymentProcessorService
 }
