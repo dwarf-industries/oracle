@@ -7,32 +7,34 @@ import (
 	"github.com/spf13/cobra"
 
 	"oracle/commands"
+	"oracle/di"
 )
 
 func main() {
-	setupServices()
+	di.SetupServices()
 	var rootCmd = &cobra.Command{
 		Use: "oracle",
 	}
+
 	addWalletcommand := commands.AddWalletCommand{
-		WalletService:   walletService,
-		RegisterService: registerService,
+		WalletService:   di.WalletService(),
+		RegisterService: di.RegisterService(),
 	}
 	generateWalletCommand := commands.GenerateWalletCommand{
-		WalletService: walletService,
+		WalletService: di.WalletService(),
 	}
 	rpcCommand := commands.SetRpcCommand{
-		RpcService: rpcService,
+		RpcService: di.RpcService(),
 	}
 	registerCommand := commands.RegisterCommand{
-		WalletService: walletService,
+		WalletService: di.WalletService(),
 
-		RegisterService: registerService,
+		RegisterService: di.RegisterService(),
 	}
 	syncCommand := commands.SyncCommand{
-		RegisterService:     registerService,
-		WalletService:       walletService,
-		VerificationService: verificationService,
+		RegisterService:     di.RegisterService(),
+		WalletService:       di.WalletService(),
+		VerificationService: di.VerificationService(),
 	}
 
 	rootCmd.AddCommand(addWalletcommand.Executable())
