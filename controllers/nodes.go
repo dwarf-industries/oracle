@@ -47,7 +47,8 @@ func (n *NodesController) near(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, nodeLatency)
 }
 
-func (n *NodesController) Init(r *gin.RouterGroup) {
+func (n *NodesController) Init(r *gin.RouterGroup, nodes *[]models.Oracle) {
+	n.oracles = *nodes
 	nodesController := r.Group("nodes")
 	nodesController.GET("/", n.all)
 	nodesController.GET("/near", n.near)
