@@ -19,7 +19,9 @@ import (
 )
 
 type SyncCommand struct {
-	RegisterService interfaces.RegisterService
+	RegisterService     interfaces.RegisterService
+	WalletService       interfaces.WalletService
+	VerificationService interfaces.VerificationService
 }
 
 func (s *SyncCommand) Executable() *cobra.Command {
@@ -35,6 +37,17 @@ func (s *SyncCommand) Executable() *cobra.Command {
 }
 
 func (s *SyncCommand) Execute(port *string) {
+	fmt.Println("Please supply your wallet password in order to proceed")
+	var password string
+	fmt.Scanln(&password)
+
+	_, err := s.WalletService.GetWallet(&password)
+
+	if err != nil {
+		fmt.Println("Failed to unlock wallet, aborting, please check your wallet settings")
+		return
+	}
+
 	router := gin.New()
 	router.Use(middlewhere.Cors())
 	router.Use(middlewhere.RateLimiterMiddleware())
@@ -47,7 +60,7 @@ func (s *SyncCommand) Execute(port *string) {
 		return
 	}
 
-	_, err := s.RegisterService.Oracles()
+	nodes, err := s.RegisterService.Oracles()
 	if err != nil {
 		fmt.Println("Failed to get oracles")
 		return
@@ -55,8 +68,16 @@ func (s *SyncCommand) Execute(port *string) {
 
 	nodesController := controllers.NodesController{}
 	identityController := controllers.IdentityController{}
-	nodesController.Init(v1)
+	dataController := controllers.DataController{
+		VerificationService: s.VerificationService,
+	}
+	socketController := controllers.DataSocketController{
+		VerificationService: s.VerificationService,
+	}
+	nodesController.Init(v1, &nodes)
 	identityController.Init(v1)
+	dataController.Init(v1)
+	socketController.Init(v1)
 
 	srv := &http.Server{
 		Addr:    *port,
