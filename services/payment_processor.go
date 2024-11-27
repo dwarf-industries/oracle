@@ -25,14 +25,20 @@ func (p *PaymentProcessor) GeneratePaymentRequest(dataSize int) models.PaymentRe
 	if err != nil {
 		panic("wallet doesn't exist")
 	}
+
+	publicAddress := p.WalletService.GetAddressForPrivateKey(wallet)
+
 	_, nodePaymentIdentifier, err := p.generatePaymentID(wallet)
 	if err != nil {
 		panic("failed to generate node payment identifier")
 	}
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%d-%s", dataSize, nodePaymentIdentifier)))
+
+	hashInput := fmt.Sprintf("%d-%s-%s", dataSize, nodePaymentIdentifier, publicAddress)
+	hash := sha256.Sum256([]byte(hashInput))
 
 	paymentID := hex.EncodeToString(hash[:])
 	p.expectedPayments[paymentID] = false
+
 	return models.PaymentRequest{
 		PaymentID: paymentID,
 		Amount:    amount,
