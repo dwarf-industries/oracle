@@ -34,13 +34,11 @@ func (p *PaymentProcessor) GeneratePaymentRequest(dataSize int) models.PaymentRe
 	}
 
 	hashInput := fmt.Sprintf("%d-%s-%s", dataSize, nodePaymentIdentifier, publicAddress)
-	hash := sha256.Sum256([]byte(hashInput))
 
-	paymentID := hex.EncodeToString(hash[:])
-	p.expectedPayments[paymentID] = false
+	p.expectedPayments[hashInput] = false
 
 	return models.PaymentRequest{
-		PaymentID: paymentID,
+		PaymentID: hashInput,
 		Amount:    amount,
 	}
 }
