@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/hex"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,14 +12,22 @@ import (
 type IdentityController struct {
 	VerificationService interfaces.VerificationService
 	IdentityService     interfaces.IdentityVerificationService
+	WalletService       interfaces.WalletService
 }
 
 func (i *IdentityController) self(ctx *gin.Context) {
-	var num int
-	if err := ctx.Bind(&num); err != nil {
+	var challenge []byte
+	if err := ctx.Bind(&challenge); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"Message": "Bad Request"})
 	}
 
+	signature, err := i.WalletService.SignMessage(challenge)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to generate signature"})
+		return
+	}
+	sig := hex.EncodeToString(signature)
+	ctx.JSON(http.StatusOK, sig)
 }
 
 func (i *IdentityController) challange(ctx *gin.Context) {
