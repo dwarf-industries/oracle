@@ -35,6 +35,7 @@ func main() {
 		RegisterService:     di.RegisterService(),
 		WalletService:       di.WalletService(),
 		VerificationService: di.VerificationService(),
+		IdentityService:     di.GetIdentityService(),
 	}
 
 	rootCmd.AddCommand(addWalletcommand.Executable())
