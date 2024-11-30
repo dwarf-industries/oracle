@@ -22,6 +22,7 @@ type SyncCommand struct {
 	RegisterService     interfaces.RegisterService
 	WalletService       interfaces.WalletService
 	VerificationService interfaces.VerificationService
+	IdentityService     interfaces.IdentityVerificationService
 }
 
 func (s *SyncCommand) Executable() *cobra.Command {
@@ -67,7 +68,11 @@ func (s *SyncCommand) Execute(port *string) {
 	}
 
 	nodesController := controllers.NodesController{}
-	identityController := controllers.IdentityController{}
+	identityController := controllers.IdentityController{
+		WalletService:       s.WalletService,
+		VerificationService: s.VerificationService,
+		IdentityService:     s.IdentityService,
+	}
 	dataController := controllers.DataController{
 		VerificationService: s.VerificationService,
 	}
