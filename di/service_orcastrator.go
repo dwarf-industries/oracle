@@ -15,6 +15,7 @@ var registerService interfaces.RegisterService
 var rpcService interfaces.RpcService
 var verificationService interfaces.VerificationService
 var paymentProcessorService interfaces.PaymentProcessor
+var identityService interfaces.IdentityVerificationService
 
 func SetupServices() {
 	err := godotenv.Load(".env")
@@ -42,7 +43,7 @@ func SetupServices() {
 	verificationService = &services.VerificationService{}
 	verificationService.Init()
 	paymentProcessorService = &services.PaymentProcessor{}
-
+	identityService = &services.IdentityService{}
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
@@ -70,4 +71,7 @@ func VerificationService() interfaces.VerificationService {
 }
 func PaymentProcessor() interfaces.PaymentProcessor {
 	return paymentProcessorService
+}
+func GetIdentityService() interfaces.IdentityVerificationService {
+	return identityService
 }
