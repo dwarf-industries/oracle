@@ -79,10 +79,13 @@ func (s *SyncCommand) Execute(port *string) {
 	socketController := controllers.DataSocketController{
 		VerificationService: s.VerificationService,
 	}
+	statusController := controllers.StatusController{}
+
 	nodesController.Init(v1, &nodes)
 	identityController.Init(v1)
 	dataController.Init(v1)
 	socketController.Init(v1)
+	statusController.Init(v1)
 
 	srv := &http.Server{
 		Addr:    *port,
