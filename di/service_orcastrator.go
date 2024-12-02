@@ -16,6 +16,7 @@ var rpcService interfaces.RpcService
 var verificationService interfaces.VerificationService
 var paymentProcessorService interfaces.PaymentProcessor
 var identityService interfaces.IdentityVerificationService
+var passwordManager interfaces.PasswordManager
 
 func SetupServices() {
 	err := godotenv.Load(".env")
@@ -24,26 +25,25 @@ func SetupServices() {
 	}
 
 	rpc := getRpc()
-
 	rpcService = &services.RpcService{}
 	rpcService.SetClient(rpc)
-
+	passwordManager = &services.PasswordManager{}
 	walletService = &services.WalletService{
-		PasswordManager: &services.PasswordManager{},
+		PasswordManager: passwordManager,
 		RpcService:      rpcService,
 	}
-	registerService = &services.RegisterService{
-		ContractAddr:  os.Getenv("CONTRACT_ADDRESS"),
+	identityService = &services.IdentityService{
 		WalletService: walletService,
-		RpcService:    rpcService,
-		VerificationService: &services.IdentityService{
-			WalletService: walletService,
-		},
+	}
+	registerService = &services.RegisterService{
+		ContractAddr:        os.Getenv("CONTRACT_ADDRESS"),
+		WalletService:       walletService,
+		RpcService:          rpcService,
+		VerificationService: identityService,
 	}
 	verificationService = &services.VerificationService{}
 	verificationService.Init()
 	paymentProcessorService = &services.PaymentProcessor{}
-	identityService = &services.IdentityService{}
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
@@ -74,4 +74,7 @@ func PaymentProcessor() interfaces.PaymentProcessor {
 }
 func GetIdentityService() interfaces.IdentityVerificationService {
 	return identityService
+}
+func GetPasswordManager() interfaces.PasswordManager {
+	return passwordManager
 }

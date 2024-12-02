@@ -27,15 +27,16 @@ func main() {
 		RpcService: di.RpcService(),
 	}
 	registerCommand := commands.RegisterCommand{
-		WalletService: di.WalletService(),
-
+		WalletService:   di.WalletService(),
 		RegisterService: di.RegisterService(),
+		PasswordManager: di.GetPasswordManager(),
 	}
 	syncCommand := commands.SyncCommand{
 		RegisterService:     di.RegisterService(),
 		WalletService:       di.WalletService(),
 		VerificationService: di.VerificationService(),
 		IdentityService:     di.GetIdentityService(),
+		PasswordManager:     di.GetPasswordManager(),
 	}
 
 	rootCmd.AddCommand(addWalletcommand.Executable())
