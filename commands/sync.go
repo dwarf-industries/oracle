@@ -23,6 +23,7 @@ type SyncCommand struct {
 	WalletService       interfaces.WalletService
 	VerificationService interfaces.VerificationService
 	IdentityService     interfaces.IdentityVerificationService
+	PasswordManager     interfaces.PasswordManager
 }
 
 func (s *SyncCommand) Executable() *cobra.Command {
@@ -38,11 +39,8 @@ func (s *SyncCommand) Executable() *cobra.Command {
 }
 
 func (s *SyncCommand) Execute(port *string) {
-	fmt.Println("Please supply your wallet password in order to proceed")
-	var password string
-	fmt.Scanln(&password)
-
-	_, err := s.WalletService.GetWallet(&password)
+	password := s.PasswordManager.Input()
+	_, err := s.WalletService.GetWallet(password)
 
 	if err != nil {
 		fmt.Println("Failed to unlock wallet, aborting, please check your wallet settings")

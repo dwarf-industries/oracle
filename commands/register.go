@@ -11,6 +11,7 @@ import (
 type RegisterCommand struct {
 	RegisterService interfaces.RegisterService
 	WalletService   interfaces.WalletService
+	PasswordManager interfaces.PasswordManager
 }
 
 func (r *RegisterCommand) Executable() *cobra.Command {
@@ -26,11 +27,8 @@ func (r *RegisterCommand) Executable() *cobra.Command {
 }
 
 func (r *RegisterCommand) Execute(domain *string) {
-	fmt.Println("Enter your password to the operations wallet")
-	var password string
-	fmt.Scanln(&password)
-
-	_, err := r.WalletService.GetWallet(&password)
+	password := r.PasswordManager.Input()
+	_, err := r.WalletService.GetWallet(password)
 	if err != nil {
 		fmt.Println("Failed to unlock wallet, either wrong password or not set.", err)
 		return
