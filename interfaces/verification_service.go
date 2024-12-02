@@ -1,7 +1,7 @@
 package interfaces
 
 type VerificationService interface {
-	GenerateChallenge(certificate []byte) ([]byte, error)
-	VerifyChallange(certificate []byte, signedChallenge []byte) (*string, error)
+	GenerateChallenge(expected []byte) ([]byte, error)
+	VerifyChallange(message []byte, signature []byte, expectedAddress string) (*string, error)
 	Init()
 }

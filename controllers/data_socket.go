@@ -35,18 +35,18 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 		return
 	}
 
-	certificate, certOk := handshake["certificate"].(string)
+	address, addressOk := handshake["address"].(string)
 	signedChallenge, signOk := handshake["signedChallenge"].(string)
 	sessionToken, tokenOk := handshake["sessionToken"].(string)
 
-	if !certOk || !signOk || !tokenOk {
+	if !signOk || !tokenOk || !addressOk {
 		conn.WriteJSON(gin.H{"Error": "Missing required fields"})
 		return
 	}
 
-	certBytes := []byte(certificate)
+	addressBytes := []byte(address)
 	signatureBytes := []byte(signedChallenge)
-	verifiedMessageID, err := d.VerificationService.VerifyChallange(certBytes, signatureBytes)
+	verifiedMessageID, err := d.VerificationService.VerifyChallange(addressBytes, signatureBytes, "")
 	if err != nil {
 		conn.WriteJSON(gin.H{"Error": "Challenge verification failed"})
 		return
