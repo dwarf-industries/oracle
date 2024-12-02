@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,26 +15,23 @@ import (
 type AddWalletCommand struct {
 	WalletService   interfaces.WalletService
 	RegisterService interfaces.RegisterService
+	PasswordManager interfaces.PasswordManager
 }
 
 func (aw *AddWalletCommand) Executable() *cobra.Command {
 	return &cobra.Command{
-		Use:   "setup [private key] [password]",
+		Use:   "setup [private key]  ",
 		Short: "configure your oracle account",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if len(args) < 2 {
-				log.Fatalf("Parameters are required, expected 3 got %v", len(args))
-			}
 			privateKey := args[0]
-			password := args[1]
-
-			aw.Execute(&privateKey, &password)
+			aw.Execute(&privateKey)
 		},
 	}
 }
 
-func (aw *AddWalletCommand) Execute(wallet *string, password *string) {
+func (aw *AddWalletCommand) Execute(wallet *string) {
+	password := aw.PasswordManager.Input()
 	privateKey, err := aw.WalletService.SetWallet(wallet, password)
 	if err != nil {
 		fmt.Println("Failed to import wallet!")
