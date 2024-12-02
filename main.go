@@ -19,6 +19,7 @@ func main() {
 	addWalletcommand := commands.AddWalletCommand{
 		WalletService:   di.WalletService(),
 		RegisterService: di.RegisterService(),
+		PasswordManager: di.GetPasswordManager(),
 	}
 	generateWalletCommand := commands.GenerateWalletCommand{
 		WalletService: di.WalletService(),

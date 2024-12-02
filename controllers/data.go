@@ -44,7 +44,7 @@ func (d *DataController) retrieveMessage(ctx *gin.Context) {
 		return
 	}
 
-	messageID, err := d.VerificationService.VerifyChallange(dataRequest.Certificate, dataRequest.SignedChallenge)
+	messageID, err := d.VerificationService.VerifyCertificateChallange(dataRequest.Certificate, dataRequest.SignedChallenge)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"Denied": "Bad Credentails"})
 		return
