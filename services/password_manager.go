@@ -1,12 +1,16 @@
 package services
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
 	"io"
 	"os"
+	"syscall"
+
+	"golang.org/x/term"
 )
 
 type PasswordManager struct{}
@@ -70,4 +74,53 @@ func (p *PasswordManager) decrypt(data []byte, key []byte) ([]byte, error) {
 	}
 
 	return plaintext, nil
+}
+
+func (p *PasswordManager) Input() *string {
+	fmt.Print("Enter password: ")
+
+	password := ""
+	for {
+		char, err := readSingleChar()
+		if err != nil {
+			fmt.Println("\nError reading password:", err)
+			return nil
+		}
+
+		if char == '\n' || char == '\r' {
+			fmt.Println()
+			break
+		}
+
+		if char == 8 || char == 127 {
+			if len(password) > 0 {
+
+				password = password[:len(password)-1]
+				fmt.Print("\b \b")
+			}
+			continue
+		}
+
+		password += string(char)
+		fmt.Print("*")
+	}
+
+	return &password
+}
+
+func readSingleChar() (byte, error) {
+	fd := int(syscall.Stdin)
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		return 0, err
+	}
+	defer term.Restore(fd, oldState)
+
+	reader := bufio.NewReader(os.Stdin)
+	char, err := reader.ReadByte()
+	if err != nil {
+		return 0, err
+	}
+
+	return char, nil
 }
