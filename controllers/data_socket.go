@@ -14,6 +14,7 @@ import (
 )
 
 type DataSocketController struct {
+	PaymentProcessor    interfaces.PaymentProcessor
 	VerificationService interfaces.VerificationService
 	dataStore           map[string][]models.Data
 	activeSessions      map[string]string
@@ -43,15 +44,18 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 			continue
 		}
 
+		authenticated := d.isAuthenticated(ctx.GetHeader("Authentication"))
+		if !authenticated && action != "authenticate" {
+			conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
+			return
+		}
+
 		switch action {
 		case "authenticate":
-			d.authenticate(conn)
+			d.authenticate(conn, message)
+		case "pop-request":
+			d.issueTransfer(conn, message)
 		case "store":
-			authenticated := d.isAuthenticated(ctx.GetHeader("Authentication"))
-			if !authenticated {
-				conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
-				return
-			}
 
 			transferPayment := d.verifyTransferPayment(ctx, conn)
 
@@ -59,7 +63,6 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 				conn.WriteJSON(gin.H{"Error": "Invalid Payment Details"})
 				return
 			}
-
 			d.storeDataSocket(conn, message)
 		case "retrieve":
 			d.retrieveMessageSocket(conn, message)
@@ -67,6 +70,16 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 			conn.WriteJSON(gin.H{"Error": "Unknown action"})
 		}
 	}
+}
+
+func (d *DataSocketController) issueTransfer(conn *websocket.Conn, data map[string]interface{}) {
+	size, ok := data["size"].(float64)
+	if !ok {
+		conn.WriteJSON(gin.H{"Error": "Invalid size"})
+		return
+	}
+	popDetails := d.PaymentProcessor.GeneratePaymentRequest(int(size))
+	conn.WriteJSON(popDetails)
 }
 
 func (d *DataSocketController) verifyTransferPayment(ctx *gin.Context, conn *websocket.Conn) bool {
@@ -86,13 +99,7 @@ func (d *DataSocketController) isAuthenticated(authentication string) bool {
 	return ok
 }
 
-func (d *DataSocketController) authenticate(conn *websocket.Conn) {
-	var handshake map[string]interface{}
-	err := conn.ReadJSON(&handshake)
-	if err != nil || handshake["action"] != "verifyChallenge" {
-		conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
-		return
-	}
+func (d *DataSocketController) authenticate(conn *websocket.Conn, handshake map[string]interface{}) {
 
 	address, addressOk := handshake["address"].(string)
 	signedChallengeData, signOk := handshake["signedChallenge"].(string)
