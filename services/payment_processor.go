@@ -67,3 +67,7 @@ func (p *PaymentProcessor) generatePaymentID(nodePrivateKey *ecdsa.PrivateKey) (
 
 	return rawID, hex.EncodeToString(signature), nil
 }
+
+func (p *PaymentProcessor) Init() {
+	p.expectedPayments = make(map[string]bool)
+}
