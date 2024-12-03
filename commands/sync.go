@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"oracle/controllers"
+	"oracle/di"
 	"oracle/interfaces"
 	"oracle/middlewhere"
 )
@@ -75,6 +76,7 @@ func (s *SyncCommand) Execute(port *string) {
 		VerificationService: s.VerificationService,
 	}
 	socketController := controllers.DataSocketController{
+		PaymentProcessor:    di.PaymentProcessor(),
 		VerificationService: s.VerificationService,
 	}
 	statusController := controllers.StatusController{}
