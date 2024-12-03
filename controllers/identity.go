@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/hex"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,9 +32,9 @@ func (i *IdentityController) self(ctx *gin.Context) {
 }
 
 func (i *IdentityController) challange(ctx *gin.Context) {
-	var certificate []byte
-	if err := ctx.Bind(&certificate); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"Denied": "Bad Request"})
+	certificate, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"Denied": "Failed to read certificate"})
 		return
 	}
 
@@ -42,8 +43,8 @@ func (i *IdentityController) challange(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"Message": "Bad Request"})
 		return
 	}
-
-	ctx.JSON(http.StatusOK, challange)
+	sig := hex.EncodeToString(challange)
+	ctx.JSON(http.StatusOK, sig)
 }
 
 func (i *IdentityController) Init(r *gin.RouterGroup) {
