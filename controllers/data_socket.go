@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/hex"
 	"net/http"
 	"sync"
 
@@ -28,44 +29,6 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 	}
 	defer conn.Close()
 
-	var handshake map[string]interface{}
-	err = conn.ReadJSON(&handshake)
-	if err != nil || handshake["action"] != "verifyChallenge" {
-		conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
-		return
-	}
-
-	address, addressOk := handshake["address"].(string)
-	signedChallenge, signOk := handshake["signedChallenge"].(string)
-	sessionToken, tokenOk := handshake["sessionToken"].(string)
-
-	if !signOk || !tokenOk || !addressOk {
-		conn.WriteJSON(gin.H{"Error": "Missing required fields"})
-		return
-	}
-
-	addressBytes := []byte(address)
-	signatureBytes := []byte(signedChallenge)
-	verifiedMessageID, err := d.VerificationService.VerifyChallange(addressBytes, signatureBytes, "")
-	if err != nil {
-		conn.WriteJSON(gin.H{"Error": "Challenge verification failed"})
-		return
-	}
-
-	d.connMutex.Lock()
-	d.activeSessions[sessionToken] = *verifiedMessageID
-	d.connMutex.Unlock()
-
-	conn.WriteJSON(gin.H{"State": "Authenticated"})
-
-	payment := ctx.GetHeader("pop")
-
-	allow, err := di.PaymentProcessor().VerifyPayment(payment)
-	if !allow || err != nil {
-		conn.WriteJSON(gin.H{"Error": "Rejected, can't verify payment"})
-		return
-	}
-
 	for {
 		var message map[string]interface{}
 		err := conn.ReadJSON(&message)
@@ -81,7 +44,22 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 		}
 
 		switch action {
+		case "authenticate":
+			d.authenticate(conn)
 		case "store":
+			authenticated := d.isAuthenticated(ctx.GetHeader("Authentication"))
+			if !authenticated {
+				conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
+				return
+			}
+
+			transferPayment := d.verifyTransferPayment(ctx, conn)
+
+			if !transferPayment {
+				conn.WriteJSON(gin.H{"Error": "Invalid Payment Details"})
+				return
+			}
+
 			d.storeDataSocket(conn, message)
 		case "retrieve":
 			d.retrieveMessageSocket(conn, message)
@@ -89,6 +67,56 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 			conn.WriteJSON(gin.H{"Error": "Unknown action"})
 		}
 	}
+}
+
+func (d *DataSocketController) verifyTransferPayment(ctx *gin.Context, conn *websocket.Conn) bool {
+	payment := ctx.GetHeader("pop")
+
+	allow, err := di.PaymentProcessor().VerifyPayment(payment)
+	if !allow || err != nil {
+		conn.WriteJSON(gin.H{"Error": "Rejected, can't verify payment"})
+		return false
+	}
+
+	return false
+}
+
+func (d *DataSocketController) isAuthenticated(authentication string) bool {
+	_, ok := d.activeSessions[authentication]
+	return ok
+}
+
+func (d *DataSocketController) authenticate(conn *websocket.Conn) {
+	var handshake map[string]interface{}
+	err := conn.ReadJSON(&handshake)
+	if err != nil || handshake["action"] != "verifyChallenge" {
+		conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
+		return
+	}
+
+	address, addressOk := handshake["address"].(string)
+	signedChallengeData, signOk := handshake["signedChallenge"].(string)
+	sessionToken, tokenOk := handshake["sessionToken"].(string)
+
+	if !signOk || !tokenOk || !addressOk {
+		conn.WriteJSON(gin.H{"Error": "Missing required fields"})
+		return
+	}
+
+	signatureBytes, _ := hex.DecodeString(signedChallengeData)
+
+	challenge := d.VerificationService.GetChallenge([]byte(address))
+	verifiedMessageID, err := d.VerificationService.VerifyChallange(challenge, signatureBytes, address)
+	if err != nil {
+		conn.WriteJSON(gin.H{"Error": "Challenge verification failed"})
+		return
+	}
+
+	d.connMutex.Lock()
+	d.activeSessions[sessionToken] = *verifiedMessageID
+	d.connMutex.Unlock()
+
+	conn.WriteJSON(gin.H{"State": "Authenticated"})
 }
 
 func (d *DataSocketController) storeDataSocket(conn *websocket.Conn, message map[string]interface{}) {
@@ -150,6 +178,7 @@ func (d *DataSocketController) retrieveMessageSocket(conn *websocket.Conn, messa
 }
 
 func (d *DataSocketController) Init(r *gin.RouterGroup) {
+	d.activeSessions = map[string]string{}
 	controller := r.Group("rlt")
 	controller.GET("/ws", func(ctx *gin.Context) {
 		d.HandleWebSocket(ctx)
