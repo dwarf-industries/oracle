@@ -19,7 +19,7 @@ type VerificationService struct {
 }
 
 func (v *VerificationService) GenerateChallenge(expected []byte) ([]byte, error) {
-	challenge := make([]byte, 256)
+	challenge := make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, challenge)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate challenge: %w", err)
@@ -31,6 +31,12 @@ func (v *VerificationService) GenerateChallenge(expected []byte) ([]byte, error)
 	v.activeChallenges[challengeID] = challenge
 
 	return challenge, nil
+}
+
+func (v *VerificationService) GetChallenge(certificate []byte) []byte {
+	hash := sha256.Sum256(certificate)
+	challengeID := hex.EncodeToString(hash[:])
+	return v.activeChallenges[challengeID]
 }
 
 func (v *VerificationService) VerifyChallange(message []byte, signature []byte, expectedAddress string) (*string, error) {
