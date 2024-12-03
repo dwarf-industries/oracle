@@ -43,7 +43,10 @@ func SetupServices() {
 	}
 	verificationService = &services.VerificationService{}
 	verificationService.Init()
-	paymentProcessorService = &services.PaymentProcessor{}
+	paymentProcessorService = &services.PaymentProcessor{
+		WalletService: walletService,
+	}
+	paymentProcessorService.Init()
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
