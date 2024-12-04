@@ -44,6 +44,7 @@ func SetupServices() {
 	verificationService = &services.VerificationService{}
 	verificationService.Init()
 	paymentProcessorService = &services.PaymentProcessor{
+		RpcService:    rpcService,
 		WalletService: walletService,
 	}
 	paymentProcessorService.Init()
