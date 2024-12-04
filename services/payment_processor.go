@@ -1,25 +1,34 @@
 package services
 
 import (
-	"crypto/ecdsa"
-	"crypto/sha256"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"time"
+	"os"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"golang.org/x/crypto/sha3"
 
+	"oracle/contracts"
 	"oracle/interfaces"
 	"oracle/models"
 )
 
 type PaymentProcessor struct {
 	WalletService    interfaces.WalletService
+	RpcService       interfaces.RpcService
 	expectedPayments map[string]bool
 }
 
 func (p *PaymentProcessor) GeneratePaymentRequest(dataSize int) models.PaymentRequest {
+
+	rand, err := rand.Int(rand.Reader, big.NewInt(int64(10000000)))
+	if err != nil {
+		return models.PaymentRequest{}
+	}
+
 	amount := big.NewInt(int64(dataSize))
 	wallet, err := p.WalletService.ActiveWallet()
 	if err != nil {
@@ -28,44 +37,47 @@ func (p *PaymentProcessor) GeneratePaymentRequest(dataSize int) models.PaymentRe
 
 	publicAddress := p.WalletService.GetAddressForPrivateKey(wallet)
 
-	_, nodePaymentIdentifier, err := p.generatePaymentID(wallet)
-	if err != nil {
-		panic("failed to generate node payment identifier")
-	}
+	hashInput := fmt.Sprintf("%d-%s-%s", dataSize, publicAddress, rand)
+	hashBytes := sha3.Sum256([]byte(hashInput))
+	paymentID := hex.EncodeToString(hashBytes[:])
 
-	hashInput := fmt.Sprintf("%d-%s-%s", dataSize, nodePaymentIdentifier, publicAddress)
-
-	p.expectedPayments[hashInput] = false
-
+	p.expectedPayments[paymentID] = false
 	return models.PaymentRequest{
-		PaymentID: hashInput,
+		PaymentID: paymentID,
 		Amount:    amount,
 	}
 }
 
 func (p *PaymentProcessor) VerifyPayment(expectedPaymentID string) (bool, error) {
-	isPaid := p.expectedPayments[expectedPaymentID]
-	if isPaid {
-		delete(p.expectedPayments, expectedPaymentID)
-		return false, nil
+
+	contractAddress := common.HexToAddress(os.Getenv("PAYMENT_LEDGER"))
+	contract, err := contracts.NewPaymentLedger(contractAddress, p.RpcService.GetClient())
+	if err != nil {
+		fmt.Println("Failed to load contract:", err)
+		return false, err
+	}
+	wallet, err := p.WalletService.ActiveWallet()
+	if err != nil {
+		fmt.Println("Wallet locked, aborting!")
+		return false, err
+	}
+
+	transactionOps, err := p.WalletService.NewTransactor(wallet)
+	if err != nil {
+		fmt.Println("Failed to generate transaction options for active wallet, aborting")
+		return false, err
+	}
+
+	isPaid, err := contract.PaymentProcessed(&bind.CallOpts{
+		From: transactionOps.From,
+	}, expectedPaymentID)
+
+	if err != nil {
+		return isPaid, err
 	}
 
 	delete(p.expectedPayments, expectedPaymentID)
-	return true, fmt.Errorf("paymentID mismatch")
-}
-
-func (p *PaymentProcessor) generatePaymentID(nodePrivateKey *ecdsa.PrivateKey) (string, string, error) {
-	timestamp := time.Now().UnixNano()
-	rawID := fmt.Sprintf("PAY-%d", timestamp)
-
-	hash := sha256.Sum256([]byte(rawID))
-
-	signature, err := crypto.Sign(hash[:], nodePrivateKey)
-	if err != nil {
-		return "", "", err
-	}
-
-	return rawID, hex.EncodeToString(signature), nil
+	return isPaid, nil
 }
 
 func (p *PaymentProcessor) Init() {
