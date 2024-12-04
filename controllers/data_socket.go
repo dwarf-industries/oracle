@@ -44,7 +44,7 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 			continue
 		}
 
-		authenticated := d.isAuthenticated(ctx.GetHeader("Authentication"))
+		authenticated := d.isAuthenticated(message["sessionToken"])
 		if !authenticated && action != "authenticate" {
 			conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
 			return
@@ -53,16 +53,16 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 		switch action {
 		case "authenticate":
 			d.authenticate(conn, message)
+
 		case "pop-request":
 			d.issueTransfer(conn, message)
 		case "store":
-
-			transferPayment := d.verifyTransferPayment(ctx, conn)
-
+			transferPayment := d.verifyTransferPayment(conn, message)
 			if !transferPayment {
 				conn.WriteJSON(gin.H{"Error": "Invalid Payment Details"})
 				return
 			}
+
 			d.storeDataSocket(conn, message)
 		case "retrieve":
 			d.retrieveMessageSocket(conn, message)
@@ -82,20 +82,26 @@ func (d *DataSocketController) issueTransfer(conn *websocket.Conn, data map[stri
 	conn.WriteJSON(popDetails)
 }
 
-func (d *DataSocketController) verifyTransferPayment(ctx *gin.Context, conn *websocket.Conn) bool {
-	payment := ctx.GetHeader("pop")
+func (d *DataSocketController) verifyTransferPayment(conn *websocket.Conn, data map[string]interface{}) bool {
+	payment := data["pop"].(string)
 
-	allow, err := di.PaymentProcessor().VerifyPayment(payment)
+	decoded, err := hex.DecodeString(payment)
+	if err != nil {
+		return false
+	}
+
+	paymentId := string(decoded)
+	allow, err := di.PaymentProcessor().VerifyPayment(paymentId)
 	if !allow || err != nil {
 		conn.WriteJSON(gin.H{"Error": "Rejected, can't verify payment"})
 		return false
 	}
 
-	return false
+	return true
 }
 
-func (d *DataSocketController) isAuthenticated(authentication string) bool {
-	_, ok := d.activeSessions[authentication]
+func (d *DataSocketController) isAuthenticated(authentication interface{}) bool {
+	_, ok := d.activeSessions[authentication.(string)]
 	return ok
 }
 
@@ -186,6 +192,8 @@ func (d *DataSocketController) retrieveMessageSocket(conn *websocket.Conn, messa
 
 func (d *DataSocketController) Init(r *gin.RouterGroup) {
 	d.activeSessions = map[string]string{}
+	d.dataStore = make(map[string][]models.Data)
+
 	controller := r.Group("rlt")
 	controller.GET("/ws", func(ctx *gin.Context) {
 		d.HandleWebSocket(ctx)
