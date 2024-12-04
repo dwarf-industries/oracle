@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -47,4 +48,6 @@ func (r *RegisterCommand) Execute(domain *string) {
 		fmt.Println("Failed to register oracle")
 		return
 	}
+
+	os.Exit(0)
 }
