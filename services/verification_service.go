@@ -1,9 +1,8 @@
 package services
 
 import (
-	c "crypto"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -68,26 +67,20 @@ func (v *VerificationService) VerifyCertificateChallange(certificate []byte, sig
 		return nil, errors.New("invalid certificate")
 	}
 
-	publicKey, ok := cert.PublicKey.(*rsa.PublicKey)
+	publicKey, ok := cert.PublicKey.(ed25519.PublicKey)
 	if !ok {
-		return nil, errors.New("certificate does not contain a valid RSA public key")
+		return nil, errors.New("certificate does not contain a valid Ed25519 public key")
 	}
 
-	hash := sha256.Sum256(certificate)
-	challengeID := hex.EncodeToString(hash[:])
-	challenge, exists := v.activeChallenges[challengeID]
-	if !exists {
-		return nil, errors.New("no active challenge found for this certificate")
+	if len(cert.RawTBSCertificate) == 0 {
+		return nil, errors.New("certificate does not contain RawTBSCertificate")
 	}
 
-	challengeHash := sha256.Sum256(challenge)
-	err = rsa.VerifyPKCS1v15(publicKey, c.SHA256, challengeHash[:], signedChallenge)
-	if err != nil {
-		return nil, errors.New("challenge verification failed")
+	if !ed25519.Verify(publicKey, cert.RawTBSCertificate, signedChallenge) {
+		return nil, errors.New("signature verification failed")
 	}
-	fmt.Println("Challenge verified successfully for:", cert.Subject.CommonName)
-	delete(v.activeChallenges, challengeID)
-	return &challengeID, nil
+	encode := hex.EncodeToString(certificate)
+	return &encode, nil
 }
 
 func (v *VerificationService) Init() {
