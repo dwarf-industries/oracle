@@ -41,12 +41,14 @@ func (s *SyncCommand) Executable() *cobra.Command {
 
 func (s *SyncCommand) Execute(port *string) {
 	password := s.PasswordManager.Input()
-	_, err := s.WalletService.GetWallet(password)
+	pk, err := s.WalletService.GetWallet(password)
 
 	if err != nil {
 		fmt.Println("Failed to unlock wallet, aborting, please check your wallet settings")
 		return
 	}
+
+	wallet := s.WalletService.GetAddressForPrivateKey(pk)
 
 	router := gin.New()
 	router.Use(middlewhere.Cors())
@@ -84,7 +86,7 @@ func (s *SyncCommand) Execute(port *string) {
 	nodesController.Init(v1, &nodes)
 	identityController.Init(v1)
 	dataController.Init(v1)
-	socketController.Init(v1)
+	socketController.Init(v1, wallet)
 	statusController.Init(v1)
 
 	srv := &http.Server{
