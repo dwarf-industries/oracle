@@ -14,10 +14,12 @@ import (
 )
 
 type DataSocketController struct {
+	nodeId              string
 	PaymentProcessor    interfaces.PaymentProcessor
 	VerificationService interfaces.VerificationService
 	dataStore           map[string][]models.Data
 	activeSessions      map[string]string
+	activeConnections   map[string]*websocket.Conn
 	connMutex           sync.Mutex
 	upgrader            websocket.Upgrader
 }
@@ -110,23 +112,35 @@ func (d *DataSocketController) authenticate(conn *websocket.Conn, handshake map[
 	address, addressOk := handshake["address"].(string)
 	signedChallengeData, signOk := handshake["signedChallenge"].(string)
 	sessionToken, tokenOk := handshake["sessionToken"].(string)
+	signature, signatureOk := handshake["signature"].(string)
+	personalIdentity, piOk := handshake["me"].(string)
 
-	if !signOk || !tokenOk || !addressOk {
+	if !signOk || !tokenOk || !addressOk || !signatureOk || !piOk {
 		conn.WriteJSON(gin.H{"Error": "Missing required fields"})
+		return
+	}
+
+	personalSignatureBytes, _ := hex.DecodeString(signature)
+	personalIdentityBytes, _ := hex.DecodeString(personalIdentity)
+
+	personalId, err := d.VerificationService.VerifyCertificateChallange(personalIdentityBytes, personalSignatureBytes)
+	if err != nil {
+		conn.WriteJSON(gin.H{"Error": "Challenge verification failed, personal identity didn't produce a valid signature"})
 		return
 	}
 
 	signatureBytes, _ := hex.DecodeString(signedChallengeData)
 
 	challenge := d.VerificationService.GetChallenge([]byte(address))
-	verifiedMessageID, err := d.VerificationService.VerifyChallange(challenge, signatureBytes, address)
+	_, err = d.VerificationService.VerifyChallange(challenge, signatureBytes, address)
 	if err != nil {
 		conn.WriteJSON(gin.H{"Error": "Challenge verification failed"})
 		return
 	}
 
 	d.connMutex.Lock()
-	d.activeSessions[sessionToken] = *verifiedMessageID
+	d.activeSessions[sessionToken] = *personalId
+	d.activeConnections[*personalId] = conn
 	d.connMutex.Unlock()
 
 	conn.WriteJSON(gin.H{"State": "Authenticated"})
@@ -140,7 +154,9 @@ func (d *DataSocketController) storeDataSocket(conn *websocket.Conn, message map
 	}
 
 	d.connMutex.Lock()
-	messageID, exists := d.activeSessions[sessionToken]
+	_, exists := d.activeSessions[sessionToken]
+
+	userConnection, connectionEstablished := d.activeConnections[message["for"].(string)]
 	d.connMutex.Unlock()
 
 	if !exists {
@@ -154,14 +170,31 @@ func (d *DataSocketController) storeDataSocket(conn *websocket.Conn, message map
 		return
 	}
 
-	if _, exists := d.dataStore[messageID]; !exists {
-		d.dataStore[messageID] = []models.Data{}
+	forUser, ok := message["for"]
+	if !ok {
+		conn.WriteJSON(gin.H{"Error": "Missing identity"})
+		return
 	}
 
-	newMessage := models.Data{ID: messageID, Content: []byte(encryptedMessage)}
-	d.dataStore[messageID] = append(d.dataStore[messageID], newMessage)
+	userId := forUser.(string)
 
-	conn.WriteJSON(gin.H{"State": "Stored"})
+	if _, exists := d.dataStore[userId]; !exists {
+		d.dataStore[userId] = []models.Data{}
+	}
+
+	newMessage := models.Data{ID: userId, Content: []byte(encryptedMessage)}
+	if !connectionEstablished {
+		d.dataStore[userId] = append(d.dataStore[userId], newMessage)
+		conn.WriteJSON(gin.H{"State": "Stored"})
+		return
+	}
+
+	userConnection.WriteJSON(gin.H{
+		"action": "message",
+		"data":   newMessage,
+		"node":   d.nodeId,
+	})
+	conn.WriteJSON(gin.H{"State": "Delivered"})
 }
 
 func (d *DataSocketController) retrieveMessageSocket(conn *websocket.Conn, message map[string]interface{}) {
@@ -182,7 +215,7 @@ func (d *DataSocketController) retrieveMessageSocket(conn *websocket.Conn, messa
 
 	messages, exists := d.dataStore[messageID]
 	if !exists {
-		conn.WriteJSON([]models.Data{})
+		conn.WriteJSON(gin.H{"Error": "No results found for identity"})
 		return
 	}
 
@@ -190,9 +223,11 @@ func (d *DataSocketController) retrieveMessageSocket(conn *websocket.Conn, messa
 	conn.WriteJSON(messages)
 }
 
-func (d *DataSocketController) Init(r *gin.RouterGroup) {
+func (d *DataSocketController) Init(r *gin.RouterGroup, node string) {
 	d.activeSessions = map[string]string{}
 	d.dataStore = make(map[string][]models.Data)
+	d.activeConnections = make(map[string]*websocket.Conn)
+	d.nodeId = node
 
 	controller := r.Group("rlt")
 	controller.GET("/ws", func(ctx *gin.Context) {
