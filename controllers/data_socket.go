@@ -81,7 +81,7 @@ func (d *DataSocketController) issueTransfer(conn *websocket.Conn, data map[stri
 		return
 	}
 	popDetails := d.PaymentProcessor.GeneratePaymentRequest(int(size))
-	conn.WriteJSON(popDetails)
+	conn.WriteJSON(gin.H{"action": "pop", "data": popDetails, "identifier": d.nodeId})
 }
 
 func (d *DataSocketController) verifyTransferPayment(conn *websocket.Conn, data map[string]interface{}) bool {
