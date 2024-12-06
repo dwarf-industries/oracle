@@ -3,14 +3,12 @@ package services
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"golang.org/x/crypto/sha3"
 
 	"oracle/interfaces"
 )
@@ -81,24 +79,7 @@ func (w *WalletService) SignMessage(message []byte) ([]byte, error) {
 }
 
 func (w *WalletService) GetAddressForPrivateKey(key *ecdsa.PrivateKey) string {
-	publicKey := key.PublicKey
-
-	xBytes := publicKey.X.Bytes()
-	yBytes := publicKey.Y.Bytes()
-
-	xPadded := make([]byte, 32-len(xBytes))
-	yPadded := make([]byte, 32-len(yBytes))
-	xPadded = append(xPadded, xBytes...)
-	yPadded = append(yPadded, yBytes...)
-
-	publicKeyBytes := append(xPadded, yPadded...)
-
-	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write(publicKeyBytes)
-	publicKeyHash := hasher.Sum(nil)
-
-	address := publicKeyHash[len(publicKeyHash)-20:]
-	addressHex := hex.EncodeToString(address)
+	addressHex := crypto.PubkeyToAddress(key.PublicKey).Hex()
 	return addressHex
 }
 
