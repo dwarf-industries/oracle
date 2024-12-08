@@ -9,15 +9,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type VerificationService struct {
 	activeChallenges map[string][]byte
+	mu               sync.Mutex
 }
 
 func (v *VerificationService) GenerateChallenge(expected []byte) ([]byte, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	challenge := make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, challenge)
 	if err != nil {
@@ -33,12 +38,18 @@ func (v *VerificationService) GenerateChallenge(expected []byte) ([]byte, error)
 }
 
 func (v *VerificationService) GetChallenge(certificate []byte) []byte {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	hash := sha256.Sum256(certificate)
 	challengeID := hex.EncodeToString(hash[:])
 	return v.activeChallenges[challengeID]
 }
 
 func (v *VerificationService) VerifyChallange(message []byte, signature []byte, expectedAddress string) (*string, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	hash := crypto.Keccak256Hash([]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(message), message)))
 	publicKey, err := crypto.SigToPub(hash.Bytes(), signature[:65])
 	if err != nil {
@@ -62,6 +73,9 @@ func (v *VerificationService) VerifyChallange(message []byte, signature []byte, 
 }
 
 func (v *VerificationService) VerifyCertificateChallange(certificate []byte, signedChallenge []byte) (*string, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	cert, err := x509.ParseCertificate(certificate)
 	if err != nil {
 		return nil, errors.New("invalid certificate")
