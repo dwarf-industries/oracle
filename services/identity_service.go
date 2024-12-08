@@ -3,10 +3,12 @@ package services
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"oracle/interfaces"
 )
@@ -26,6 +28,10 @@ func (i *IdentityService) Verify(ip string, expected string) bool {
 		fmt.Printf("Error encoding JSON: %v\n", err)
 		return false
 	}
+	ip = strings.Join([]string{
+		ip,
+		"/v1/identity/self",
+	}, "")
 
 	req, err := http.NewRequest("POST", ip, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -49,8 +55,22 @@ func (i *IdentityService) Verify(ip string, expected string) bool {
 
 	fmt.Printf("Response status: %s\n", resp.Status)
 
-	i.WalletService.VerifySignature(challange, []byte(body), expected)
-	return false
+	var hexData string
+	if err := json.Unmarshal(body, &hexData); err != nil {
+		return false
+	}
+
+	signatureBytes, err := hex.DecodeString(hexData)
+	if err != nil {
+		return false
+	}
+	verified, err := i.WalletService.VerifySignature(challange, signatureBytes, expected)
+
+	if err != nil {
+		return false
+	}
+
+	return verified
 }
 
 func (i *IdentityService) generateRandomBytes(size int) ([]byte, error) {
