@@ -12,4 +12,7 @@ type RegisterService interface {
 	Registered() bool
 	GetRegistrationFee() (*big.Int, error)
 	GetReportFee() (*big.Int, error)
+	GetOracle() (*models.Oracle, error)
+	LogOut() error
+	Login() error
 }
