@@ -182,7 +182,13 @@ func (d *DataSocketController) storeDataSocket(conn *websocket.Conn, message map
 		d.dataStore[userId] = []models.Data{}
 	}
 
-	newMessage := models.Data{ID: userId, Content: []byte(encryptedMessage)}
+	newMessage := models.Data{
+		ID:          userId,
+		Content:     []byte(encryptedMessage),
+		MessageID:   message["messageID"].(string),
+		ChunkIndex:  message["chunkIndex"].(int),
+		TotalChunks: message["totalChunks"].(int),
+	}
 	if !connectionEstablished {
 		d.dataStore[userId] = append(d.dataStore[userId], newMessage)
 		conn.WriteJSON(gin.H{"State": "Stored"})
