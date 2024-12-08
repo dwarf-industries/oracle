@@ -89,6 +89,16 @@ func (s *SyncCommand) Execute(port *string) {
 	socketController.Init(v1, wallet)
 	statusController.Init(v1)
 
+	_, err = s.RegisterService.GetOracle()
+	if err != nil {
+		panic("can't get oracle")
+	}
+
+	err = s.RegisterService.Login()
+	if err != nil {
+		panic("can't go online, aborting startup procedure, please reach to the support team")
+	}
+
 	srv := &http.Server{
 		Addr:    *port,
 		Handler: router,
