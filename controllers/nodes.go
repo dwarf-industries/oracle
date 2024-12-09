@@ -7,15 +7,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"oracle/models"
+	"oracle/di"
 )
 
 type NodesController struct {
-	oracles []models.Oracle
 }
 
 func (n *NodesController) all(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, n.oracles)
+	oracles, err := di.RegisterService().Oracles()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"Message": "Error"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, oracles)
 }
 
 func (n *NodesController) near(ctx *gin.Context) {
@@ -23,8 +28,13 @@ func (n *NodesController) near(ctx *gin.Context) {
 		ip      string
 		latency time.Duration
 	}
+	oracles, err := di.RegisterService().Oracles()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"Message": "Error"})
+		return
+	}
 
-	for _, o := range n.oracles {
+	for _, o := range oracles {
 		start := time.Now()
 		resp, err := http.Get(o.Ip)
 		if err != nil {
@@ -47,8 +57,7 @@ func (n *NodesController) near(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, nodeLatency)
 }
 
-func (n *NodesController) Init(r *gin.RouterGroup, nodes *[]models.Oracle) {
-	n.oracles = *nodes
+func (n *NodesController) Init(r *gin.RouterGroup) {
 	nodesController := r.Group("nodes")
 	nodesController.GET("/", n.all)
 	nodesController.GET("/near", n.near)

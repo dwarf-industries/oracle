@@ -3,6 +3,8 @@ package interfaces
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"oracle/models"
 )
 
@@ -15,4 +17,6 @@ type RegisterService interface {
 	GetOracle() (*models.Oracle, error)
 	LogOut() error
 	Login() error
+	AddOracle(oracle common.Address) error
+	RemoveOracle(oracle common.Address) error
 }

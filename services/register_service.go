@@ -18,6 +18,7 @@ type RegisterService struct {
 	RpcService          interfaces.RpcService
 	ContractAddr        string
 	VerificationService interfaces.IdentityVerificationService
+	oracles             []models.Oracle
 }
 
 func (r *RegisterService) Register(ip string) error {
@@ -60,6 +61,11 @@ func (r *RegisterService) Register(ip string) error {
 }
 
 func (r *RegisterService) Oracles() ([]models.Oracle, error) {
+
+	if len(r.oracles) > 0 {
+		return r.oracles, nil
+	}
+
 	contractAddress := common.HexToAddress(r.ContractAddr)
 	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
 	if err != nil {
@@ -112,6 +118,8 @@ func (r *RegisterService) Oracles() ([]models.Oracle, error) {
 			Reputation: *o.Reputation,
 		})
 	}
+
+	r.oracles = oracles
 	return oracles, nil
 }
 
@@ -180,7 +188,6 @@ func (r *RegisterService) GetOracle() (*models.Oracle, error) {
 		return nil, err
 	}
 
-	fmt.Println(exists)
 	if !exists {
 		return nil, errors.New("oracle not doesn't exist")
 	}
@@ -253,4 +260,55 @@ func (r *RegisterService) GetReportFee() (*big.Int, error) {
 	}
 
 	return contract.GetReportFee(&bind.CallOpts{})
+}
+
+func (r *RegisterService) AddOracle(oracle common.Address) error {
+	wallet, err := r.WalletService.ActiveWallet()
+	if err != nil {
+		return err
+	}
+
+	contractAddress := common.HexToAddress(r.ContractAddr)
+	contract, err := register.NewRegister(contractAddress, r.RpcService.GetClient())
+	if err != nil {
+		return fmt.Errorf("failed to load contract: %v", err)
+	}
+
+	auth, err := r.WalletService.NewTransactor(wallet)
+	if err != nil {
+		return fmt.Errorf("failed to create transactor: %v", err)
+	}
+
+	oracleData, err := contract.GetOracle(&bind.CallOpts{
+		From: auth.From,
+	}, oracle)
+
+	if err != nil {
+		return err
+	}
+
+	if !oracleData.IsOnline {
+		return errors.New("oracle is offline, can't add it")
+	}
+
+	r.oracles = append(r.oracles, models.Oracle{
+		Name:             oracleData.Name.Hex(),
+		Ip:               oracleData.Ip,
+		Port:             oracleData.Port,
+		Reputation:       *oracleData.Reputation,
+		ConnectionStatus: oracleData.IsOnline,
+	})
+
+	return nil
+}
+
+func (r *RegisterService) RemoveOracle(current common.Address) error {
+	var filtered []models.Oracle
+	for _, oracle := range r.oracles {
+		if oracle.Name != current.Hex() {
+			filtered = append(filtered, oracle)
+		}
+	}
+	r.oracles = filtered
+	return nil
 }

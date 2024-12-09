@@ -10,13 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
+	"oracle/contracts"
 	"oracle/controllers"
 	"oracle/di"
 	"oracle/interfaces"
 	"oracle/middlewhere"
+	"oracle/subscribers"
 )
 
 type SyncCommand struct {
@@ -62,11 +66,27 @@ func (s *SyncCommand) Execute(port *string) {
 		return
 	}
 
-	nodes, err := s.RegisterService.Oracles()
+	contractAddress := common.HexToAddress(os.Getenv("CONTRACT_ADDRESS"))
+	contract, err := contracts.NewRegister(contractAddress, di.RpcService().GetClient())
+	if err != nil {
+		fmt.Println("Failed to load contract:", err)
+	}
+
+	oracles, err := s.RegisterService.Oracles()
 	if err != nil {
 		fmt.Println("Failed to get oracles")
 		return
 	}
+
+	var oracleAddresses []common.Address
+	for _, oracle := range oracles {
+		address := common.HexToAddress(oracle.Name)
+		oracleAddresses = append(oracleAddresses, address)
+	}
+	onlineSubscriber := subscribers.NewOfflineSubscriber(contract, oracleAddresses)
+	onlineSubscriber.Start(&bind.WatchOpts{})
+	offlineSubsciber := subscribers.NewOfflineSubscriber(contract, oracleAddresses)
+	offlineSubsciber.Start(&bind.WatchOpts{})
 
 	nodesController := controllers.NodesController{}
 	identityController := controllers.IdentityController{
@@ -83,7 +103,7 @@ func (s *SyncCommand) Execute(port *string) {
 	}
 	statusController := controllers.StatusController{}
 
-	nodesController.Init(v1, &nodes)
+	nodesController.Init(v1)
 	identityController.Init(v1)
 	dataController.Init(v1)
 	socketController.Init(v1, wallet)
@@ -115,11 +135,16 @@ func (s *SyncCommand) Execute(port *string) {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	got := <-quit
 	fmt.Println(got)
-	log.Println("Shutdown Server ...")
+	log.Println("Shutdown Server ... please wait for the procedure to end")
+
+	onlineSubscriber.Stop()
+	offlineSubsciber.Stop()
+	di.GetShutdownService().ShutdownServer()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
+		di.GetShutdownService().ShutdownServer()
 		log.Fatal("Server Shutdown:", err)
 	}
 
