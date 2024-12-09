@@ -181,13 +181,14 @@ func (d *DataSocketController) storeDataSocket(conn *websocket.Conn, message map
 	if _, exists := d.dataStore[userId]; !exists {
 		d.dataStore[userId] = []models.Data{}
 	}
-
+	chunks := message["chunkIndex"].(float64)
+	totalChunks := message["totalChunks"].(float64)
 	newMessage := models.Data{
 		ID:          userId,
 		Content:     []byte(encryptedMessage),
 		MessageID:   message["messageID"].(string),
-		ChunkIndex:  message["chunkIndex"].(int),
-		TotalChunks: message["totalChunks"].(int),
+		ChunkIndex:  int(chunks),
+		TotalChunks: int(totalChunks),
 	}
 	if !connectionEstablished {
 		d.dataStore[userId] = append(d.dataStore[userId], newMessage)
