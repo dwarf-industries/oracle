@@ -17,6 +17,7 @@ var verificationService interfaces.VerificationService
 var paymentProcessorService interfaces.PaymentProcessor
 var identityService interfaces.IdentityVerificationService
 var passwordManager interfaces.PasswordManager
+var shutdownService interfaces.ShutdownService
 
 func SetupServices() {
 	err := godotenv.Load(".env")
@@ -48,6 +49,9 @@ func SetupServices() {
 		WalletService: walletService,
 	}
 	paymentProcessorService.Init()
+	shutdownService = &services.ShutdownService{
+		RegisterService: registerService,
+	}
 }
 func getRpc() *string {
 	rpc := os.Getenv("RPC")
@@ -81,4 +85,7 @@ func GetIdentityService() interfaces.IdentityVerificationService {
 }
 func GetPasswordManager() interfaces.PasswordManager {
 	return passwordManager
+}
+func GetShutdownService() interfaces.ShutdownService {
+	return shutdownService
 }
