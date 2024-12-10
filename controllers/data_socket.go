@@ -48,7 +48,7 @@ func (d *DataSocketController) HandleWebSocket(ctx *gin.Context) {
 
 		authenticated := d.isAuthenticated(message["sessionToken"])
 		if !authenticated && action != "authenticate" {
-			conn.WriteJSON(gin.H{"Error": "Invalid handshake"})
+			conn.WriteJSON(gin.H{"Error": "Missing authentication token"})
 			return
 		}
 
@@ -108,7 +108,6 @@ func (d *DataSocketController) isAuthenticated(authentication interface{}) bool 
 }
 
 func (d *DataSocketController) authenticate(conn *websocket.Conn, handshake map[string]interface{}) {
-
 	address, addressOk := handshake["address"].(string)
 	signedChallengeData, signOk := handshake["signedChallenge"].(string)
 	sessionToken, tokenOk := handshake["sessionToken"].(string)
